@@ -1,0 +1,89 @@
+/******** start code ********/
+
+#define pin A0
+#define pinSwitch 1
+
+int ledPin = 13;                // 选择灯的引脚
+int inputPin = 2;               //switch传感器连接引脚
+
+int loop_interval = 500;        // 0.5s
+int interval_distance_max = 10;  // 10mm
+int pre_distance = 0;
+
+bool switchOn = false;
+
+void setup () {
+        Serial.begin (9600);
+        pinMode (pin, INPUT);
+        
+        pinMode(ledPin, OUTPUT);      // 定义灯的引脚为输出引脚
+        pinMode(inputPin, INPUT);     // 定义按键引脚为输入引脚
+        pinMode(pinSwitch, OUTPUT);   // 继电器控制
+}
+
+void loop () {
+         //通过按钮开关，对继电器开闭状态进行强制切换。
+         int val = digitalRead(inputPin);  //读取输入值
+         //Serial.print("button: " + val);
+          if (val == HIGH) {            // 检查输入是否为高，这里高为没有按下
+            Serial.print("button high");
+            switchOn = !switchOn;
+            if(switchOn){
+              digitalWrite(pinSwitch, LOW);
+              pre_distance = 0;          // 重置距离参数
+              Serial.println ("Heating...");
+            }
+            else if( pre_distance != 0){
+              digitalWrite(pinSwitch, HIGH);
+              pre_distance = 99999;          // 重置距离参数
+              Serial.println ("Stoped...");
+            }
+            digitalWrite(ledPin, LOW);  // 灯关闭状态
+            Serial.println ("high");
+            
+            Serial.println ();
+          } 
+        
+        uint16_t value = analogRead (pin);
+        uint16_t range = get_gp2d12 (value);
+        
+        if(switchOn){
+          //读取红外距离传感器数据
+          
+          digitalWrite(ledPin, LOW); // 灯亮起状态
+          
+          if(pre_distance == 0) pre_distance = range;
+          
+          if( abs(range - pre_distance) >= interval_distance_max){
+              Serial.print( range);
+              Serial.print( ",");
+              Serial.print( pre_distance);
+              Serial.print( ",");
+              Serial.println(interval_distance_max);
+              // 页面快速上升中，证明牛奶已经沸腾，需要立即断电。
+              digitalWrite(pinSwitch, HIGH);
+              Serial.print("Boiling");
+              delay(100000);
+              
+          }
+          pre_distance = range;
+          //Serial.write(value + "\n");
+          //Serial.write(range + "mm\n");
+  
+          //Serial.println (value);
+          
+        }
+        Serial.print (range);
+          Serial.println (" mm");
+          Serial.println ();
+        delay (loop_interval);
+}
+
+//return distance (mm)
+uint16_t get_gp2d12 (uint16_t value) {
+        if (value < 30)
+                value = 30;
+        return ((67870.0 / (value - 3.0)) - 40.0);
+}
+
+/******** end code ********/
